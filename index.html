@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    body {
+      background: #f8f4fb;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 40px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #7e57c2;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(126, 87, 194, 0.1);
+    }
+    th, td {
+      padding: 14px;
+      border: 1px solid #e0d7ec;
+      text-align: center;
+    }
+    th {
+      background: #e1bee7;
+      color: #4a148c;
+    }
+    select, button {
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: 1px solid #c7b1d6;
+      background: #f3e5f5;
+      color: #4a148c;
+      cursor: pointer;
+    }
+    select {
+      margin-right: 5px;
+    }
+    .summary {
+      background: #e1bee7;
+      color: #4a148c;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>ระบบเช็คสถานะการส่งซ่อมออนไลน์</h1>
+  <div class="summary" id="summary"></div>
+  <table id="repairTable">
+    <thead>
+      <tr>
+        <th>วันเดือนที่ส่งซ่อม</th>
+        <th>ชื่อผู้ส่งซ่อม</th>
+        <th>อุปกรณ์ที่ส่งซ่อม</th>
+        <th>เลขคุรุภัณฑ์</th>
+        <th>อาการที่ส่งซ่อม</th>
+        <th>ตำแหน่งที่ตั้ง</th>
+        <th>ไฟล์แนบ</th>
+        <th>สถานะ</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    function loadData() {
+      google.script.run.withSuccessHandler(drawTable).getRepairData();
+    }
+
+    function drawTable(data) {
+      const tbody = document.querySelector('#repairTable tbody');
+      tbody.innerHTML = '';
+      let summary = {
+        'รอส่งซ่อม': 0,
+        'ส่งซ่อมแล้ว': 0,
+        'รออนุมัติ': 0,
+        'เรื่องอยู่พัสดุ': 0,
+        'รับของเรียบร้อย': 0
+      };
+
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+
+        for (let j = 1; j < row.length - 1; j++) { // ไม่เอาประทับเวลา, เอาถึงรูป
+          const td = document.createElement('td');
+          if (j === 7) {
+            td.innerHTML = `<a href="${row[j]}" target="_blank">ดูไฟล์</a>`;
+          } else {
+            td.textContent = row[j];
+          }
+          tr.appendChild(td);
+        }
+
+        // เพิ่มสถานะ
+        const tdStatus = document.createElement('td');
+        tdStatus.textContent = row[8];
+        tr.appendChild(tdStatus);
+
+        summary[row[8]] = (summary[row[8]] || 0) + 1;
+
+        // จัดการสถานะ
+        const tdAction = document.createElement('td');
+        const select = document.createElement('select');
+        ['รอส่งซ่อม', 'ส่งซ่อมแล้ว', 'รออนุมัติ', 'เรื่องอยู่พัสดุ', 'รับของเรียบร้อย'].forEach(s => {
+          const option = document.createElement('option');
+          option.value = s;
+          option.textContent = s;
+          if (s === row[8]) option.selected = true;
+          select.appendChild(option);
+        });
+
+        const btn = document.createElement('button');
+        btn.textContent = 'อัปเดต';
+        btn.onclick = () => {
+          google.script.run.withSuccessHandler(loadData)
+            .updateStatus(i, select.value);
+        };
+
+        tdAction.appendChild(select);
+        tdAction.appendChild(btn);
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById('summary').innerHTML = `
+        📦 ส่งซ่อมแล้ว: ${summary['ส่งซ่อมแล้ว']} |
+        🕒 รออนุมัติ: ${summary['รออนุมัติ']} |
+        📂 เรื่องอยู่พัสดุ: ${summary['เรื่องอยู่พัสดุ']} |
+        ✅ รับของเรียบร้อย: ${summary['รับของเรียบร้อย']}
+      `;
+    }
+
+    window.onload = loadData;
+  </script>
+</body>
+</html>
